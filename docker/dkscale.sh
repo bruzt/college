@@ -142,7 +142,6 @@ function scale {
 		# Verifica e filtra o uso da CPU e Memória do serviço e suas réplicas e salva no log
 		docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemPerc}}" | grep -w $service > $resfile
 
-		
 		# Retorna o nome de todos os nodes que o serviço esta rodando exceto este
 		docker node ps | sed -n '1!p' | grep 'Running' | grep -w $service | awk '{print $4}' | grep -v hostname > $nodesfile 
 
@@ -178,6 +177,15 @@ function scale {
 		    proc=$(awk "BEGIN {print $proc+$line; exit}")
 		done < "$procfile"
 		proc=$(awk "BEGIN {print int($proc/$lines); exit}") 	# Variavel contendo a média da CPU
+		
+		# Defina a porcentagem da média de uso da CPU
+		cpu=$(docker service inspect $service | grep "NanoCPUs" | tr -d '"NanoCPUs":' | tr -d ',' | head -n1)
+		if [ -z $cpu ];then
+			cpu=100
+		else
+			cpu=$(awk "BEGIN {print $cpu/10000000; exit}")
+		fi
+		cpu=$(awk "BEGIN {print int(($proc/$cpu)*100); exit}")
 
 		# Tira a média aritimética do uso de Memória de todas as replicas do serviço 
 		mem=0.0
@@ -187,14 +195,16 @@ function scale {
 		done < "$memfile"
 		mem=$(awk "BEGIN {print int($mem/$lines); exit}")	# Variavel contendo a média da Memoria
 		
-		# Faz o escalonamento		
-		if [ "$mem" -le "30" ] && [ $count -gt "1" ];then	# -le = menor ou igual, -gt = maior que
+		# Faz o escalonamento
+		# Se o serviço esta usando menos de 10% do total de processamento ou menos de 30% do total de memoria ele mata uma replica
+		if ([ "$cpu" -le "10" ] && [ $count -gt "1" ]) || ([ "$mem" -le "30" ] && [ $count -gt "1" ]);then	# -le = menor ou igual, -gt = maior que
 			count=$(awk "BEGIN {print $count-1; exit}")	# Decrescenta o contador
 			servscale=$service'='$count
 			sudo docker service scale $servscale 1> /dev/null 2>> $errlog
 			echo "$(date +"%d-%m-%Y") at $(date +"%T") Scale DOWN service $service to $count" >> $scalelog	# Salva no log
-
-		elif [ "$mem" -ge "70" ] && [ $count -lt "20" ];then 	# -ge = maior ou igual, -lt = menor que
+			
+		# Se o serviço esta usando mais de 90% do total de processamento ou mais de 70% do total de memoria ele cria uma nova replica
+		elif ([ "$cpu" -ge "90" ] && [ $count -lt "10" ]) || ([ "$mem" -ge "70" ] && [ $count -lt "10" ]);then 	# -ge = maior ou igual, -lt = menor que
 			count=$(awk "BEGIN {print $count+1; exit}")	# Incrementa o contador
 			servscale=$service'='$count
 			sudo docker service scale $servscale 1> /dev/null 2>> $errlog

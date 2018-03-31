@@ -178,8 +178,13 @@ function scale {
 		done < "$procfile"
 		proc=$(awk "BEGIN {print int($proc/$lines); exit}") 	# Variavel contendo a média da CPU
 		
+		# Defina a porcentagem da média de uso da CPU
 		cpu=$(docker service inspect $service | grep "NanoCPUs" | tr -d '"NanoCPUs":' | tr -d ',' | head -n1)
-		cpu=$(awk "BEGIN {print $cpu/10000000; exit}")
+		if [ -z $cpu ];then
+			cpu=100
+		else
+			cpu=$(awk "BEGIN {print $cpu/10000000; exit}")
+		fi
 		cpu=$(awk "BEGIN {print int(($proc/$cpu)*100); exit}")
 
 		# Tira a média aritimética do uso de Memória de todas as replicas do serviço 

@@ -1,0 +1,52 @@
+#!/bin/bash
+
+source /usr/local/sbin/dkset.sh
+
+##############################################################
+####################### MAIN #################################
+##############################################################
+
+while test $# -gt -1
+do
+    case "$1" in
+	-h) 
+		dkshelp
+		exit 0
+	;;
+	--help) 
+		dkshelp
+		exit 0
+	;;
+
+	-v) 
+		echo $VERSION
+		exit 0
+	;;
+	--version) 
+		echo $VERSION
+		exit 0
+	;;
+
+	auto) 
+		auto "$@"
+		exit 0
+	;;
+
+	show) 
+		show
+		exit 0
+	;;
+
+	stop) 
+		stop "$@"
+		exit 0
+	;;
+
+	*) 
+		dkshelp
+		exit 0
+	;;
+    esac
+
+    shift
+done

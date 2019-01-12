@@ -1,0 +1,29 @@
+FROM docker:stable
+
+RUN apk update && apk upgrade && apk --no-cache add bash procps openssh
+RUN mkdir /usr/local/sbin
+
+COPY ./dkscale /usr/local/sbin/dkscale
+COPY ./dkset.sh /usr/local/sbin/dkset.sh
+COPY ./dkrun.sh /usr/local/sbin/dkrun.sh
+
+RUN chmod +x /usr/local/sbin/dkscale
+RUN chmod +x /usr/local/sbin/dkset.sh
+RUN chmod +x /usr/local/sbin/dkrun.sh
+
+RUN sed -i 's/exec "$@"//' /usr/local/bin/docker-entrypoint.sh
+
+RUN echo "exec dkrun.sh &" >> /usr/local/bin/docker-entrypoint.sh
+RUN echo 'exec "$@"' >> /usr/local/bin/docker-entrypoint.sh
+
+EXPOSE 22
+
+
+# sudo docker run -tid  --privileged --name dkscale --cpuset-cpus="0" -m 32M --network=host --volume /var/run/docker.sock:/var/run/docker.sock --volume ~/.ssh/:/root/.ssh/ --volume /var/log/dkscale/:/var/log/dkscale/ --restart=always bruzt/dkscale:latest
+
+# sudo docker exec dkscale dkscale auto --name apache_webserver --time 10 --user pi --cpuonly
+
+# ab -n 100000 -c 1000 -k 192.168.1.110:8081/index.html
+
+# sudo docker push bruzt/dkscale:latest .
+
